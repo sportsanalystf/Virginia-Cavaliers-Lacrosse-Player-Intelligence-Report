@@ -4,4 +4,5 @@ numpy
 matplotlib
 seaborn
 scikit-learn
+plotly
 # add anything else you import in the app (e.g. matplotlib, scikit-learn, etc.)
