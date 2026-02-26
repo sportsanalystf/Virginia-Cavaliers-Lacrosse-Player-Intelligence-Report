@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virginia WLAX Player Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --uva-blue: #232D4B;
+  --uva-orange: #E57200;
+  --cav-orange: #F84C1E;
+  --uva-cyan: #009FDF;
+  --uva-yellow: #FDDA24;
+  --uva-teal: #25CAD3;
+  --uva-green: #62BB46;
+  --uva-magenta: #EF3F6B;
+  --light-gray: #F1F1EF;
+  --med-gray: #DADADA;
+  --text-gray: #666666;
+  --blue-25: #C8CBD2;
+  --orange-25: #F9DCBF;
+  --white: #FFFFFF;
+  --shadow-sm: 0 2px 8px rgba(35,45,75,0.06);
+  --shadow-md: 0 4px 20px rgba(35,45,75,0.10);
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--light-gray);
+  color: var(--uva-blue);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+h1, h2, h3, h4 {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 1.5px;
+  color: var(--uva-blue);
+}
+
+/* ═══ LAYOUT ═══ */
+.app-container { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 260px; min-width: 260px;
+  background: var(--uva-blue);
+  color: white; padding: 0;
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto; z-index: 100;
+  display: flex; flex-direction: column;
+}
+.sidebar-header {
+  padding: 1.5rem 1.2rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-header h2 { color: white; font-size: 1.3rem; margin-bottom: 0.2rem; }
+.sidebar-header p { color: rgba(255,255,255,0.5); font-size: 0.75rem; }
+.sidebar-nav { padding: 1rem 0; flex: 1; }
+.nav-btn {
+  display: block; width: 100%; text-align: left;
+  padding: 0.75rem 1.2rem; border: none; background: transparent;
+  color: rgba(255,255,255,0.65); font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem; cursor: pointer; transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+.nav-btn.active {
+  background: rgba(229,114,0,0.12);
+  color: var(--uva-orange); border-left-color: var(--uva-orange);
+  font-weight: 600;
+}
+.sidebar-filters {
+  padding: 1rem 1.2rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-filters label {
+  display: block; color: rgba(255,255,255,0.5);
+  font-size: 0.72rem; text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 0.4rem; font-weight: 600;
+}
+.filter-group { margin-bottom: 1rem; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  padding: 4px 10px; border-radius: 20px; font-size: 0.72rem;
+  cursor: pointer; border: 1px solid rgba(255,255,255,0.2);
+  background: transparent; color: rgba(255,255,255,0.7);
+  transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+}
+.chip.active {
+  background: var(--uva-orange); color: white;
+  border-color: var(--uva-orange);
+}
+
+.main-content { flex: 1; padding: 1.5rem 2rem; max-width: calc(100vw - 260px); overflow-x: hidden; }
+
+/* ═══ HEADER ═══ */
+.main-header {
+  background: linear-gradient(135deg, var(--uva-blue) 0%, #1a2238 50%, var(--uva-orange) 100%);
+  padding: 1.3rem 2rem; border-radius: var(--radius);
+  margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;
+}
+.main-header h1 { color: white; font-size: 2.2rem; line-height: 1; }
+.main-header p { color: rgba(255,255,255,0.7); font-size: 0.88rem; margin-top: 0.2rem; }
+
+/* ═══ PLAYER CARD ═══ */
+.player-card {
+  background: var(--white); border: 1px solid var(--med-gray);
+  border-radius: var(--radius); padding: 1.4rem 1.6rem;
+  margin-bottom: 1.2rem; box-shadow: var(--shadow-sm);
+  border-left: 5px solid var(--uva-orange);
+  transition: all 0.25s; animation: fadeUp 0.4s ease both;
+}
+.player-card:hover { box-shadow: var(--shadow-md); border-left-color: var(--cav-orange); }
+@keyframes fadeUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+
+.card-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.headshot {
+  width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+  border: 3px solid var(--uva-orange); flex-shrink: 0;
+  background: var(--light-gray);
+}
+.headshot-placeholder {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--blue-25); display: flex; align-items: center;
+  justify-content: center; font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.6rem; color: var(--uva-blue); flex-shrink: 0;
+}
+.card-top-info { flex: 1; }
+.player-name {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem;
+  color: var(--uva-blue); letter-spacing: 2px; line-height: 1.1;
+}
+.player-meta {
+  color: var(--uva-orange); font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase; margin-top: 2px;
+}
+.impact-box {
+  background: linear-gradient(135deg, var(--uva-orange) 0%, var(--cav-orange) 100%);
+  border-radius: 12px; padding: 0.8rem 1rem; text-align: center;
+  min-width: 80px; flex-shrink: 0;
+}
+.impact-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem;
+  color: white; line-height: 1;
+}
+.impact-label {
+  color: rgba(255,255,255,0.9); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+}
+
+/* Tier badges */
+.tier-badge {
+  display: inline-block; padding: 3px 12px; border-radius: 50px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: white; vertical-align: middle; margin-left: 6px;
+}
+.tier-1 { background: var(--cav-orange); }
+.tier-2 { background: var(--uva-cyan); }
+.tier-3 { background: var(--uva-green); }
+.tier-4 { background: var(--med-gray); color: var(--uva-blue); }
+
+/* Score bars row */
+.score-bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 1rem; }
+.score-bar-item {
+  background: var(--white); border: 1px solid var(--med-gray);
+  border-radius: var(--radius-sm); padding: 0.6rem 0.4rem; text-align: center;
+}
+.score-bar-val {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; line-height: 1;
+}
+.score-bar-label {
+  font-size: 0.6rem; color: var(--text-gray); text-transform: uppercase;
+  letter-spacing: 1.2px; font-weight: 600; margin-top: 3px;
+}
+
+.section-divider { border: none; border-top: 1px solid var(--med-gray); margin: 0.8rem 0; }
+
+/* Middle grid */
+.card-mid { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 1rem; }
+.card-mid-section h4 {
+  font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.82rem;
+  color: var(--uva-blue); margin-bottom: 0.5rem; letter-spacing: 0;
+}
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+.stat-item {
+  background: var(--light-gray); border-radius: 8px; padding: 0.5rem 0.3rem;
+  text-align: center;
+}
+.stat-item .val { font-weight: 700; font-size: 1rem; color: var(--uva-blue); }
+.stat-item .lbl { font-size: 0.6rem; color: var(--text-gray); text-transform: uppercase; letter-spacing: 0.5px; }
+.chart-container { position: relative; width: 100%; }
+.chart-container canvas { width: 100% !important; }
+
+/* Flags */
+.flags { display: flex; flex-wrap: wrap; gap: 4px; margin: 0.6rem 0; }
+.flag {
+  display: inline-block; padding: 3px 10px; border-radius: 50px;
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.3px;
+}
+.flag-positive { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
+.flag-negative { background: #FCE4EC; color: #C62828; border: 1px solid #EF9A9A; }
+.flag-warning { background: #FFF8E1; color: #E65100; border: 1px solid #FFE082; }
+.flag-info { background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; }
+
+/* Notes boxes */
+.coaching-notes {
+  background: #F8F8FC; border-left: 4px solid var(--uva-blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.8rem 1rem; font-size: 0.82rem; line-height: 1.6; margin-top: 0.5rem;
+}
+.rec-box {
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFF8E1 100%);
+  border-left: 4px solid var(--uva-orange);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.8rem 1rem; font-size: 0.82rem; line-height: 1.6; margin-top: 0.4rem;
+}
+.rec-box strong { color: var(--cav-orange); }
+
+/* Shot funnel */
+.shot-funnel { display: flex; gap: 0; align-items: center; margin: 0.5rem 0; height: 28px; border-radius: 6px; overflow: hidden; }
+.shot-funnel-bar { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 600; transition: width 0.5s; }
+
+/* ═══ TEAM OVERVIEW ═══ */
+.tier-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+.tier-card {
+  background: var(--white); border-radius: var(--radius);
+  padding: 1.2rem; text-align: center; box-shadow: var(--shadow-sm);
+  border: 2px solid var(--med-gray);
+}
+.tier-card .num { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; line-height: 1; }
+.tier-card .label { font-size: 0.68rem; color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.tier-card .names { font-size: 0.78rem; margin-top: 8px; color: var(--uva-blue); }
+
+.overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.overview-panel {
+  background: var(--white); border-radius: var(--radius);
+  padding: 1.2rem; box-shadow: var(--shadow-sm);
+}
+.overview-panel h3 { font-size: 1.2rem; margin-bottom: 0.8rem; }
+.overview-panel.full { grid-column: 1 / -1; }
+
+/* ═══ COMPARISON ═══ */
+.comp-header {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;
+}
+.comp-player {
+  background: var(--white); border-radius: var(--radius);
+  padding: 1.5rem; text-align: center; box-shadow: var(--shadow-sm);
+}
+.comp-player img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin-bottom: 0.5rem; }
+.comp-player h3 { margin-bottom: 0.2rem; }
+.comp-player .meta { color: var(--text-gray); font-size: 0.82rem; }
+
+.comp-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.comp-chart-panel { background: var(--white); border-radius: var(--radius); padding: 1.2rem; box-shadow: var(--shadow-sm); }
+
+/* ═══ RECS ═══ */
+.rec-tier-section { margin-bottom: 1.5rem; }
+.rec-tier-section h3 { font-size: 1.2rem; margin-bottom: 0.8rem; }
+.rec-player-card {
+  background: var(--white); border-radius: var(--radius-sm);
+  padding: 1rem 1.2rem; margin-bottom: 0.8rem;
+  box-shadow: var(--shadow-sm); display: flex; gap: 1rem; align-items: flex-start;
+  border: 1px solid var(--med-gray);
+}
+.rec-player-card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.rec-player-info { flex: 1; }
+.rec-player-info .name { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.3rem; }
+
+/* ═══ DRAW CENTER ═══ */
+.dc-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+.dc-metric {
+  background: var(--white); border-radius: var(--radius);
+  padding: 1.2rem; text-align: center; box-shadow: var(--shadow-sm);
+}
+.dc-metric .val { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--uva-orange); }
+.dc-metric .lbl { font-size: 0.72rem; color: var(--text-gray); text-transform: uppercase; letter-spacing: 1px; }
+
+/* ═══ TABLE ═══ */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table th {
+  background: var(--uva-blue); color: white; padding: 0.6rem 1rem;
+  text-align: left; font-weight: 600; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.data-table td { padding: 0.5rem 1rem; border-bottom: 1px solid var(--med-gray); }
+.data-table tr:hover { background: var(--light-gray); }
+
+.view-section { display: none; }
+.view-section.active { display: block; }
+
+/* Heatmap */
+.heatmap-grid { display: grid; gap: 2px; }
+.heatmap-cell {
+  padding: 0.4rem 0.3rem; text-align: center; font-size: 0.78rem;
+  font-weight: 600; border-radius: 4px;
+}
+.heatmap-header {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-gray); font-weight: 700; padding: 0.3rem;
+}
+.heatmap-name {
+  font-size: 0.78rem; font-weight: 600; text-align: right;
+  padding-right: 0.5rem; white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .card-mid { grid-template-columns: 1fr 1fr; }
+  .overview-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main-content { padding: 1rem; max-width: 100%; }
+  .card-mid { grid-template-columns: 1fr; }
+  .score-bars { grid-template-columns: repeat(3, 1fr); }
+  .tier-cards { grid-template-columns: 1fr 1fr; }
+  .comp-header, .comp-bars { grid-template-columns: 1fr; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--blue-25); border-radius: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+<div class="app-container">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>⚔️ Virginia WLAX</h2>
+      <p>Player Intelligence System</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" data-view="cards">📋 Player Cards</button>
+      <button class="nav-btn" data-view="overview">📊 Team Overview</button>
+      <button class="nav-btn" data-view="comparison">🔬 Comparison</button>
+      <button class="nav-btn" data-view="recommendations">🎯 Recommendations</button>
+      <button class="nav-btn" data-view="drawcenter">🏆 Draw Control Center</button>
+    </nav>
+    <div class="sidebar-filters">
+      <div class="filter-group">
+        <label>Position</label>
+        <div class="filter-chips" id="posFilter">
+          <button class="chip active" data-pos="A">A</button>
+          <button class="chip active" data-pos="M">M</button>
+          <button class="chip active" data-pos="D">D</button>
+          <button class="chip active" data-pos="GK">GK</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Tier</label>
+        <div class="filter-chips" id="tierFilter">
+          <button class="chip active" data-tier="1">T1</button>
+          <button class="chip active" data-tier="2">T2</button>
+          <button class="chip active" data-tier="3">T3</button>
+          <button class="chip active" data-tier="4">T4</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Min GP</label>
+        <input type="range" id="minGP" min="1" max="5" value="1" style="width:100%;accent-color:var(--uva-orange);">
+        <span id="minGPVal" style="color:rgba(255,255,255,0.7);font-size:0.8rem;">1</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div class="main-header">
+      <div>
+        <h1>⚔️ VIRGINIA CAVALIERS — PLAYER INTELLIGENCE</h1>
+        <p>Women's Lacrosse · 2026 Season (5 Games) · Record: 2-3 · Advanced Analytics Dashboard</p>
+      </div>
+    </div>
+
+    <div id="view-cards" class="view-section active"></div>
+    <div id="view-overview" class="view-section"></div>
+    <div id="view-comparison" class="view-section"></div>
+    <div id="view-recommendations" class="view-section"></div>
+    <div id="view-drawcenter" class="view-section"></div>
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════
+const PLAYERS = {
+  "Madison Alaimo": {num:16,pos:"A",yr:"Jr",gp:5,gs:5,g:10,a:15,pts:25,sh:18,sh_pct:55.6,sog:16,sog_pct:88.9,gb:4,dc:0,to:11,ct:1,fpg:3,fps:4,yc:0,gc:2,game_g:[0,5,3,4,2],game_a:[4,1,2,3,3],game_pts:[4,6,5,7,5],game_sh:[3,5,5,4,3],game_to:[4,2,0,1,4],img:"https://virginiasports.com/imgproxy/pYMb3-v9_Iw05OEJEvS-VLV-PkXLxFnbK2dnVLNGX2o/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvYm9JU25aRzgycFVLbFVqTjc3c3daUkRwV0JOWkdpVDQ2UG0zSUVCQy5qcGc.jpg"},
+  "Jenna Dinardo": {num:4,pos:"A",yr:"Jr",gp:5,gs:5,g:9,a:2,pts:11,sh:29,sh_pct:31.0,sog:26,sog_pct:89.7,gb:3,dc:8,to:10,ct:2,fpg:3,fps:9,yc:1,gc:3,game_g:[1,3,3,1,1],game_a:[0,1,1,0,0],game_pts:[1,4,4,1,1],game_sh:[4,10,8,6,5],game_to:[3,2,2,1,4],img:"https://virginiasports.com/imgproxy/M-EqJX8pcAsMqHLqjB7zcRq0P-nR7bKVTQ8i_D86R_4/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvaUpmMjVsZWtZazlNZzRRYWxoTWlCZmhSNldUZjBxZnBTdW1kbENRYi5qcGc.jpg"},
+  "Addi Foster": {num:15,pos:"A",yr:"Jr",gp:5,gs:5,g:10,a:2,pts:12,sh:24,sh_pct:41.7,sog:20,sog_pct:83.3,gb:2,dc:0,to:3,ct:0,fpg:2,fps:2,yc:1,gc:1,game_g:[0,4,2,3,1],game_a:[0,1,0,0,1],game_pts:[0,5,2,3,2],game_sh:[1,5,3,6,6],game_to:[1,1,0,1,0],img:"https://virginiasports.com/imgproxy/a-B08gK1VEOXrp9J_Bq82N_9xdFa-xpzxKphIiuuPcg/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvRGdrQ1czdnJKTnRJcGRvZjJuOWRjSHBZMGJnbjRTeWZ3amFWRlFOOS5qcGc.jpg"},
+  "Kate Galica": {num:5,pos:"M",yr:"Jr",gp:5,gs:5,g:6,a:5,pts:11,sh:24,sh_pct:25.0,sog:17,sog_pct:70.8,gb:13,dc:35,to:13,ct:10,fpg:1,fps:4,yc:0,gc:3,game_g:[2,1,0,1,3],game_a:[0,1,0,2,2],game_pts:[2,2,0,3,5],game_sh:[3,5,5,6,7],game_to:[1,4,4,4,2],img:"https://virginiasports.com/imgproxy/Z4W8fnWOqaA8_rvVBt7EqYIeGP5hJuEhM3yBq62nGYU/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvdmFpYXp5MlVkMXBRMThGVFJxemZ3V2hyb3ZkUjl4MEIzbTN5UHdaYi5qcGc.jpg"},
+  "Cady Flaherty": {num:6,pos:"M",yr:"Fr",gp:5,gs:2,g:4,a:1,pts:5,sh:7,sh_pct:57.1,sog:6,sog_pct:85.7,gb:3,dc:1,to:1,ct:2,fpg:3,fps:3,yc:0,gc:3,game_g:[2,0,1,1,0],game_a:[0,1,1,0,0],game_pts:[2,1,2,1,0],game_sh:[2,1,2,2,1],game_to:[0,0,0,1,0],img:"https://virginiasports.com/imgproxy/K-T-B3xpQl-aDjFqBq_Y80c5ZE8x4l5H8MbR7AqGnOE/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvN2xzcFN0THhFbnMwZFBPNk1mTUt2V1M5VUt3S01VVlZPdkVzNWltdi5qcGc.jpg"},
+  "Gabby Laverghetta": {num:43,pos:"A",yr:"So",gp:5,gs:3,g:5,a:2,pts:7,sh:8,sh_pct:62.5,sog:6,sog_pct:75.0,gb:3,dc:0,to:3,ct:0,fpg:0,fps:0,yc:1,gc:3,game_g:[2,1,0,1,0],game_a:[1,1,0,0,0],game_pts:[3,2,0,1,0],game_sh:[3,1,0,2,0],game_to:[0,0,0,2,0],img:"https://virginiasports.com/imgproxy/F_sxh_p1KSKW5FxzFKp3vQ0A-0k4Y5uyhd-yVCTBm2Y/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvWFdGa3VmcGdIbk9OT3FZaUlnVDQ5Uld3UXBZdWFSWENDcTdIT0RMMS5qcGc.jpg"},
+  "Livy Laverghetta": {num:42,pos:"M",yr:"So",gp:5,gs:0,g:3,a:1,pts:4,sh:4,sh_pct:75.0,sog:4,sog_pct:100.0,gb:2,dc:1,to:2,ct:0,fpg:0,fps:0,yc:0,gc:0,game_g:[1,1,1,1,0],game_a:[0,1,0,1,0],game_pts:[1,2,1,2,0],game_sh:[1,1,1,1,0],game_to:[0,0,0,0,0],img:"https://virginiasports.com/imgproxy/b9RWFgqGBkgGFIjgOK2CzY-VKfyX8o_0dNxA-KbFVIE/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvbGRYSUxQeTRLN2dGN2dXbFlhcUtIaXExbzFLcDlGWFNMamdaMTVOeS5qcGc.jpg"},
+  "Raleigh Foster": {num:10,pos:"A",yr:"Fr",gp:2,gs:0,g:3,a:0,pts:3,sh:7,sh_pct:42.9,sog:6,sog_pct:85.7,gb:0,dc:0,to:0,ct:0,fpg:0,fps:0,yc:0,gc:0,game_g:[1,2],game_a:[0,0],game_pts:[1,2],game_sh:[4,3],game_to:[0,0],img:"https://virginiasports.com/imgproxy/Ke-zN1_Bc0bQF5BRmfL_y8JtajBT9e0Z3Y7WjMIyg6o/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvQjB4aWI5MlRFTXpPeFBzaW1Gc0VZc2drUEt5c0MyQ2JUZzVwM0Jqdy5qcGc.jpg"},
+  "Alex Reilly": {num:23,pos:"M",yr:"So",gp:5,gs:5,g:1,a:0,pts:1,sh:5,sh_pct:20.0,sog:3,sog_pct:60.0,gb:2,dc:6,to:3,ct:2,fpg:0,fps:0,yc:2,gc:1,game_g:[1,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[1,0,0,0,0],game_sh:[3,0,0,0,0],game_to:[0,0,0,0,1],img:"https://virginiasports.com/imgproxy/v5qLaFiVpJJ6AQBdz1V2PEiNWxJnS1vVPKN3Nde4wDk/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvUXRYTDUyOFJyODlUWm5wek1hOHRscXZXd2pjQnExNWdjY0VmQXZVbS5qcGc.jpg"},
+  "Payton Sfreddo": {num:7,pos:"M",yr:"So",gp:5,gs:0,g:1,a:0,pts:1,sh:1,sh_pct:100.0,sog:1,sog_pct:100.0,gb:3,dc:1,to:1,ct:1,fpg:0,fps:0,yc:0,gc:1,game_g:[1,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[1,0,0,0,0],game_sh:[1,0,0,0,0],game_to:[0,0,0,0,0],img:"https://virginiasports.com/imgproxy/TXIbMgQ6cnYINW5h0zcOSjHGNcNbptNMhT4HwIFi7FI/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvQjI3eG1zcXZVd3BmVENpNjRkMjZ2NXJ3SjNIR0xCOFdVT09tTkFnUy5qcGc.jpg"},
+  "Kate Demark": {num:3,pos:"D",yr:"Jr",gp:5,gs:5,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:3,dc:0,to:0,ct:10,fpg:0,fps:0,yc:0,gc:2,game_g:[0,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[0,0,0,0,0],game_sh:[0,0,0,0,0],game_to:[0,0,0,0,0],img:"https://virginiasports.com/imgproxy/hqJLp2fJTW5ZPt0Zp8_GV7yOlAIOcBrwCOOJKBt5YZU/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvN3dWb0xoWXV3a0htamdHYjFJb2tVcXdEYnV0c0NZcHRkNWZJWWdYdi5qcGc.jpg"},
+  "Alexandra Schneider": {num:8,pos:"D",yr:"Jr",gp:5,gs:5,g:0,a:0,pts:0,sh:1,sh_pct:0,sog:1,sog_pct:100.0,gb:2,dc:0,to:0,ct:6,fpg:0,fps:0,yc:1,gc:0,game_g:[0,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[0,0,0,0,0],game_sh:[0,0,1,0,0],game_to:[0,0,0,0,0],img:"https://virginiasports.com/imgproxy/s9CLFpBGzTNyXL3r9hC6sSeLTsHXYSiNNGxkdDR7EoE/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvMk5uMGVGOXpSS3F2aHlSU0hHU1hGNmVPcjEweTYyNWxQQVZIVDhWWi5qcGc.jpg"},
+  "Sophia Conti": {num:9,pos:"M",yr:"So",gp:5,gs:5,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:9,dc:0,to:2,ct:4,fpg:0,fps:0,yc:0,gc:1,game_g:[0,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[0,0,0,0,0],game_sh:[0,0,0,0,0],game_to:[1,0,1,0,1],img:"https://virginiasports.com/imgproxy/5z2L5PGXqj8_YJRy8H8-tXxjj3pIH3CjRXzE97dG-eA/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvQmRzQU1yNkZjME1MSjd5OVFqOXVmRHdLdndlcUh5WjBvaTdYSWVRSi5qcGc.jpg"},
+  "Lara Kology": {num:36,pos:"D",yr:"Sr",gp:5,gs:5,g:0,a:0,pts:0,sh:1,sh_pct:0,sog:1,sog_pct:100.0,gb:7,dc:1,to:1,ct:1,fpg:0,fps:0,yc:1,gc:2,game_g:[0,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[0,0,0,0,0],game_sh:[0,1,0,1,0],game_to:[1,0,0,0,0],img:"https://virginiasports.com/imgproxy/gk2T0i4LG_ik2E-fL7oaS8nlJPhBl9aPWS-NHB2XpNM/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvZkdZYlhiZFdHT1d2bXRuUXFndUxyWW5ERWh3R3lqR2lLYjgzbm1JMC5qcGc.jpg"},
+  "Elyse Finnelle": {num:34,pos:"GK",yr:"Sr",gp:5,gs:3,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:10,dc:0,to:0,ct:1,fpg:0,fps:0,yc:0,gc:0,gk_min:230.82,gk_ga:39,gk_gaa:10.14,gk_sv:23,gk_sv_pct:37.1,gk_w:2,gk_l:1,game_g:[0,0,0,0,0],game_a:[0,0,0,0,0],game_pts:[0,0,0,0,0],game_sh:[0,0,0,0,0],game_to:[0,0,0,0,0],img:"https://virginiasports.com/imgproxy/0R3SdJ2qx08ccevzYjFN9e1z3SJEdN1jJ8kAMuBbZrQ/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcveDVla1RCZnluRnJIUWRjQzdGbWNLZGdFVXhGa25jWkh4amVJcG5Ybi5qcGc.jpg"},
+  "Mel Josephson": {num:26,pos:"GK",yr:"Sr",gp:3,gs:2,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:3,dc:0,to:0,ct:0,fpg:0,fps:0,yc:0,gc:0,gk_min:68.47,gk_ga:17,gk_gaa:14.90,gk_sv:10,gk_sv_pct:37.0,gk_w:0,gk_l:2,game_g:[0,0,0],game_a:[0,0,0],game_pts:[0,0,0],game_sh:[0,0,0],game_to:[0,0,0],img:"https://virginiasports.com/imgproxy/0l2LW0rXiVmhIAi7dFFqPjC_8iNmCIoNXHPj80L64io/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvZXRKSk55RXF5Nnl3YUV2Y3FUVDRHR1RVclNYazlXdGJGTGd3ekVQYy5qcGc.jpg"},
+  "Carly Kennedy": {num:13,pos:"M",yr:"So",gp:3,gs:2,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:4,dc:0,to:0,ct:3,fpg:0,fps:0,yc:0,gc:1,game_g:[0,0,0],game_a:[0,0,0],game_pts:[0,0,0],game_sh:[0,0,0],game_to:[0,0,0],img:"https://virginiasports.com/imgproxy/jP9nvB-_HjIFZ23hA5A_eMpRn7gU5XBmNXhxW1AKK5A/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvSE5SSHBxZWF4Mk5jQXQ0ZXRWVEFYTHhiUnJ2VTlMbUZPU3BYUDdiOC5qcGc.jpg"},
+  "Megan Rocklein": {num:11,pos:"M",yr:"Fr",gp:3,gs:0,g:0,a:2,pts:2,sh:1,sh_pct:0,sog:0,sog_pct:0,gb:1,dc:0,to:3,ct:0,fpg:0,fps:0,yc:0,gc:0,game_g:[0,0,0],game_a:[0,2,0],game_pts:[0,2,0],game_sh:[0,0,1],game_to:[1,0,2],img:"https://virginiasports.com/imgproxy/k7wIW43g42bHERYl-kL_FVPJ3-JqPxfjz4fwdZJBfbo/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvSk5yRDlpNldlSTBHbGpPUVFaYUVtNTBFWFhyVzFoRnBZcno0VmU1Yi5qcGc.jpg"},
+  "Fiona Allen": {num:41,pos:"A",yr:"So",gp:4,gs:0,g:1,a:1,pts:2,sh:2,sh_pct:50.0,sog:1,sog_pct:50.0,gb:0,dc:0,to:1,ct:0,fpg:1,fps:1,yc:0,gc:0,game_g:[0,0,1,0],game_a:[1,0,0,0],game_pts:[1,0,1,0],game_sh:[0,0,1,0],game_to:[0,0,0,0],img:"https://virginiasports.com/imgproxy/Z_e6g3SVzfXz9VffJLWQWJP0KdKdGH7BKxj1xEm3eiU/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvTEV5d0daUEE5RTczTlQ3TGdJUjh0S2RMeTFjRlJiTjB4dHlwQ0p3Sy5qcGc.jpg"},
+  "Abby Musser": {num:14,pos:"D",yr:"So",gp:4,gs:3,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:2,dc:0,to:1,ct:1,fpg:0,fps:0,yc:1,gc:0,game_g:[0,0,0,0],game_a:[0,0,0,0],game_pts:[0,0,0,0],game_sh:[0,0,0,0],game_to:[0,0,0,1],img:"https://virginiasports.com/imgproxy/2ZI8pSVJOr2J7oWmHI1Q-OWVeVj-6JFIm0fQRx8l5kM/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvU21NckJ6SEF3clZMZjdDNHlFMHQ0VjhxRmxVSmtLNWN4bVdwclRIVi5qcGc.jpg"},
+  "Jayden Piraino": {num:2,pos:"A",yr:"So",gp:1,gs:0,g:2,a:0,pts:2,sh:2,sh_pct:100.0,sog:2,sog_pct:100.0,gb:0,dc:0,to:0,ct:0,fpg:1,fps:1,yc:0,gc:0,game_g:[2],game_a:[0],game_pts:[2],game_sh:[2],game_to:[0],img:"https://virginiasports.com/imgproxy/5i_Fqg7Lxf8Wge2MfLXp5LYdKJgSqS6K8l3iqGS77RY/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvZk5pZDFYYnhGR1UxTmkxSWdtSlI3aUQxZjM1MnBKSjN2VTlVUUoyYy5qcGc.jpg"},
+  "Corey White": {num:25,pos:"M",yr:"Jr",gp:4,gs:0,g:0,a:0,pts:0,sh:0,sh_pct:0,sog:0,sog_pct:0,gb:0,dc:1,to:0,ct:0,fpg:0,fps:0,yc:0,gc:0,game_g:[0,0,0,0],game_a:[0,0,0,0],game_pts:[0,0,0,0],game_sh:[0,0,0,0],game_to:[0,0,0,0],img:"https://virginiasports.com/imgproxy/P7CbNjrQg_YxRiGiPMeMLxIJMC9FW4OPqyuKw-3cpyw/rs:fit:400:0:0:0/g:ce:0:0/q:85/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3Zpcmdpbmlhc3BvcnRzLWNvbS1wcm9kLzIwMjUvMDEvMDcvZTFTQUVHRE5mWWRLYkNOc21QQk12VlRONXI3Ymo5bkI2MHdGOEptOS5qcGc.jpg"},
+};
+
+const GAMES = ["vs Navy (L)", "vs Richmond (L)", "at Maryland (L)", "at Liberty (W)", "at Notre Dame (W)"];
+
+// ═══════════════════════════════════════════════
+// ANALYTICS ENGINE
+// ═══════════════════════════════════════════════
+function computeAll() {
+  const active = Object.entries(PLAYERS).filter(([,p]) => p.gp >= 2);
+  const teamAvg = {
+    max_gpg: Math.max(...active.map(([,p]) => p.g/p.gp)),
+    max_ppg: Math.max(...active.map(([,p]) => p.pts/p.gp)),
+    max_apg: Math.max(...active.map(([,p]) => p.a/p.gp)),
+    max_ctpg: Math.max(...active.map(([,p]) => p.ct/p.gp)),
+    max_gbpg: Math.max(...active.map(([,p]) => p.gb/p.gp)),
+    max_dcpg: Math.max(...active.map(([,p]) => p.dc/p.gp)),
+    max_poss: Math.max(...active.map(([,p]) => p.gb+p.dc+p.ct-p.to)),
+  };
+
+  const result = {};
+  for (const [name, p] of Object.entries(PLAYERS)) {
+    const gp = Math.max(p.gp, 1);
+    const m = {
+      ppg: p.pts/gp, gpg: p.g/gp, apg: p.a/gp,
+      pts_per_shot: p.pts/Math.max(p.sh,1),
+      to_rate: p.to/Math.max(p.sh+p.to+p.dc+p.gb,1),
+      poss_impact: p.gb+p.dc+p.ct-p.to,
+      discipline_raw: p.yc*3+p.gc*1,
+    };
+    // Consistency
+    const gpts = p.game_pts;
+    const mean = gpts.reduce((a,b)=>a+b,0)/gpts.length;
+    if (gpts.length > 1 && mean > 0) {
+      const std = Math.sqrt(gpts.reduce((a,b)=>a+(b-mean)**2,0)/gpts.length);
+      m.consistency = 1 - Math.min(std/mean, 1);
+    } else m.consistency = mean > 0 ? 1 : 0.5;
+    // Clutch
+    if (p.game_g.length === 5) {
+      const lossAvg = (p.game_g[0]+p.game_g[1]+p.game_g[2])/3 || 0.001;
+      const winAvg = (p.game_g[3]+p.game_g[4])/2;
+      m.clutch = winAvg / Math.max(lossAvg, 0.001);
+    } else m.clutch = 1;
+
+    // Impact scores
+    const norm = (v, mx, inv=false) => { if(!mx)return 50; let r=Math.min(v/mx,1.5)/1.5*100; return inv?100-r:r; };
+    const s = {};
+    s.offensive = Math.min(100, norm(m.gpg,teamAvg.max_gpg)*0.35 + norm(p.sh_pct,75)*0.25 + norm(m.ppg,teamAvg.max_ppg)*0.25 + norm(p.a/gp,teamAvg.max_apg)*0.15);
+    s.defensive = Math.min(100, norm(p.ct/gp,teamAvg.max_ctpg)*0.45 + norm(p.gb/gp,teamAvg.max_gbpg)*0.35 + norm(m.discipline_raw,10,true)*0.20);
+    s.possession = Math.min(100, norm(m.poss_impact,teamAvg.max_poss)*0.40 + norm(p.dc/gp,teamAvg.max_dcpg)*0.35 + norm(p.gb/gp,teamAvg.max_gbpg)*0.25);
+    s.efficiency = Math.min(100, norm(p.sh_pct,75)*0.30 + norm(p.sog_pct,100)*0.25 + norm(m.to_rate,1,true)*0.25 + norm(m.consistency,1)*0.20);
+    s.discipline = Math.max(0, 100 - m.discipline_raw*12);
+
+    const w = p.pos==='A'?{o:0.4,d:0.05,p:0.15,e:0.3,di:0.1}:p.pos==='M'?{o:0.25,d:0.2,p:0.25,e:0.2,di:0.1}:p.pos==='D'?{o:0.05,d:0.45,p:0.2,e:0.1,di:0.2}:p.pos==='GK'?{o:0,d:0.35,p:0.15,e:0.35,di:0.15}:{o:0.25,d:0.25,p:0.2,e:0.2,di:0.1};
+    s.overall = s.offensive*w.o + s.defensive*w.d + s.possession*w.p + s.efficiency*w.e + s.discipline*w.di;
+
+    if (p.pos==='GK' && p.gk_sv_pct !== undefined) {
+      s.overall = norm(p.gk_sv_pct,60)*0.40 + norm(20-p.gk_gaa,20)*0.30 + norm(p.gb/gp,teamAvg.max_gbpg)*0.15 + s.discipline*0.15;
+      s.efficiency = norm(p.gk_sv_pct,60); s.defensive = norm(20-p.gk_gaa,20);
+    }
+
+    // Tier
+    const tier = s.overall >= 65 ? 1 : s.overall >= 45 ? 2 : s.overall >= 25 ? 3 : 4;
+    const tierLabel = ['','Program Driver','System Amplifier','Situational Specialist','Developmental'][tier];
+
+    // Flags
+    const flags = [];
+    if (p.to/gp >= 2 && p.pts > 0) flags.push({t:'High Turnover Risk',c:'negative'});
+    if (p.sh_pct >= 50 && p.sh >= 5) flags.push({t:'Elite Finisher',c:'positive'});
+    if (p.sh_pct < 30 && p.sh >= 10) flags.push({t:'Shot Selection Concern',c:'warning'});
+    if (p.ct/gp >= 1.5) flags.push({t:'Defensive Disruptor',c:'positive'});
+    if (p.dc/gp >= 3) flags.push({t:'Draw Control Engine',c:'positive'});
+    if (p.gb/gp >= 1.5) flags.push({t:'Ground Ball Magnet',c:'positive'});
+    if (m.consistency >= 0.7 && p.pts > 3) flags.push({t:'Reliable Contributor',c:'info'});
+    if (m.consistency < 0.4 && p.pts > 3) flags.push({t:'High Variance',c:'warning'});
+    if (m.clutch >= 1.5 && p.g >= 3) flags.push({t:'Clutch Performer',c:'positive'});
+    if (s.discipline <= 60) flags.push({t:'Discipline Concern',c:'warning'});
+    if (p.pos==='GK') {
+      if ((p.gk_sv_pct||0)>=40) flags.push({t:'Solid Save Rate',c:'positive'});
+      if ((p.gk_gaa||20)<=10) flags.push({t:'Low GAA',c:'positive'});
+      if ((p.gk_gaa||0)>=14) flags.push({t:'High GAA Concern',c:'negative'});
+    }
+    if (p.a/gp >= 2) flags.push({t:'Elite Playmaker',c:'positive'});
+
+    // Notes
+    let notes = `${name} is a ${p.yr} ${({A:'Attacker',M:'Midfielder',D:'Defender',GK:'Goalkeeper'})[p.pos]} classified as a <strong>Tier ${tier} — ${tierLabel}</strong>. `;
+    if (p.pos==='A') {
+      if (p.g>=8) notes+=`Primary scoring threat with ${p.g}G and ${p.a}A. `;
+      if (p.sh_pct<35&&p.sh>15) notes+=`${p.sh_pct.toFixed(0)}% shooting on ${p.sh} shots needs refinement. `;
+      if (p.to>=8) notes+=`${p.to} turnovers are a key development area. `;
+      if (p.a>=10) notes+=`${p.a} assists make her the primary distributor. `;
+    } else if (p.pos==='M') {
+      if (p.dc>=20) notes+=`Dominates the draw circle with ${p.dc} draw controls. `;
+      if (p.pts>=5) notes+=`Contributes offensively with ${p.pts} points. `;
+      if (p.ct>=5) notes+=`Adds defensive value with ${p.ct} caused turnovers. `;
+    } else if (p.pos==='D') {
+      if (p.ct>=5) notes+=`Elite defender with ${p.ct} caused turnovers. `;
+      if (p.gb>=5) notes+=`Active on ground balls (${p.gb}). `;
+    } else if (p.pos==='GK'&&p.gk_sv_pct!==undefined) {
+      notes+=`${p.gk_sv_pct.toFixed(1)}% save rate with ${p.gk_gaa.toFixed(2)} GAA. `;
+    }
+
+    // Recommendations
+    const recs = [];
+    if (p.pos==='A') {
+      if (p.sh_pct<35&&p.sh>=10) recs.push(`🎯 <strong>Shot Selection:</strong> ${p.sh_pct.toFixed(0)}% shooting on ${p.sh} shots — focus on higher-percentage zones and reduce contested attempts.`);
+      if (p.to/gp>=2) recs.push(`🔄 <strong>Ball Security:</strong> Averaging ${(p.to/gp).toFixed(1)} TO/game — work on off-hand stick skills and decision-making under pressure.`);
+      if (p.a/gp>=2&&p.g/gp>=1.5) recs.push(`⭐ <strong>Maximize Usage:</strong> Dual-threat creator — should be primary option in critical possessions.`);
+      if (p.g>=5&&p.a<3) recs.push(`👀 <strong>Expand Playmaking:</strong> Strong finisher (${p.g}G) but only ${p.a}A — encourage extra pass when doubled.`);
+    } else if (p.pos==='M') {
+      if (p.dc/gp>=3) recs.push(`🏆 <strong>Protect the Draw:</strong> ${(p.dc/gp).toFixed(0)} DC/game is elite — ensure she takes every draw.`);
+      if (p.to/gp>=2) recs.push(`🔄 <strong>Transition Discipline:</strong> High turnovers (${p.to}) — focus on controlled clears.`);
+      if (p.sh_pct<30&&p.sh>=5) recs.push(`🎯 <strong>Shot Quality:</strong> ${p.sh_pct.toFixed(0)}% shooting — reduce long-range attempts.`);
+    } else if (p.pos==='D') {
+      if (p.ct/gp>=1.5) recs.push(`🛡️ <strong>Defensive Anchor:</strong> ${(p.ct/gp).toFixed(1)} CTs/game — assign to opponent's top attacker.`);
+      if (p.gb/gp>=1.5) recs.push(`💪 <strong>Ground Ball Intensity:</strong> Use on draw circle for first-ground-ball recovery.`);
+    } else if (p.pos==='GK') {
+      if ((p.gk_sv_pct||0)<40) recs.push(`🧤 <strong>Save Rate Development:</strong> ${(p.gk_sv_pct||0).toFixed(1)}% below D1 avg (~45%) — focus on positioning drills.`);
+      if ((p.gk_gaa||0)>=12) recs.push(`📉 <strong>Defensive System Review:</strong> ${(p.gk_gaa||0).toFixed(2)} GAA is elevated — review slide packages.`);
+    }
+    if (!recs.length) {
+      if (tier===4) recs.push(`🌱 <strong>Development Plan:</strong> Needs increased practice reps. Focus on best positional skill.`);
+      else if (tier===3) recs.push(`📋 <strong>Defined Role:</strong> Can contribute in specific situations. Identify top 1-2 skills.`);
+    }
+
+    result[name] = { player: p, metrics: m, scores: s, tier, tierLabel, flags, notes, recs };
+  }
+  return result;
+}
+
+const allData = computeAll();
+const chartInstances = {};
+
+// ═══════════════════════════════════════════════
+// FILTER & NAV
+// ═══════════════════════════════════════════════
+let activeFilters = { pos: new Set(['A','M','D','GK']), tiers: new Set([1,2,3,4]), minGP: 1 };
+let currentView = 'cards';
+
+function getFiltered() {
+  return Object.entries(allData)
+    .filter(([,d]) => activeFilters.pos.has(d.player.pos) && activeFilters.tiers.has(d.tier) && d.player.gp >= activeFilters.minGP)
+    .sort((a,b) => b[1].scores.overall - a[1].scores.overall);
+}
+
+function scoreColor(v) { return v>=65?'var(--uva-green)':v>=40?'var(--uva-yellow)':'var(--uva-magenta)'; }
+
+// Nav
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-'+currentView).classList.add('active');
+    render();
+  });
+});
+// Chips
+document.querySelectorAll('#posFilter .chip').forEach(c => {
+  c.addEventListener('click', () => {
+    c.classList.toggle('active');
+    const pos = c.dataset.pos;
+    if (activeFilters.pos.has(pos)) activeFilters.pos.delete(pos); else activeFilters.pos.add(pos);
+    render();
+  });
+});
+document.querySelectorAll('#tierFilter .chip').forEach(c => {
+  c.addEventListener('click', () => {
+    c.classList.toggle('active');
+    const t = parseInt(c.dataset.tier);
+    if (activeFilters.tiers.has(t)) activeFilters.tiers.delete(t); else activeFilters.tiers.add(t);
+    render();
+  });
+});
+document.getElementById('minGP').addEventListener('input', e => {
+  activeFilters.minGP = parseInt(e.target.value);
+  document.getElementById('minGPVal').textContent = e.target.value;
+  render();
+});
+
+// ═══════════════════════════════════════════════
+// CHART HELPERS
+// ═══════════════════════════════════════════════
+function destroyChart(id) { if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; } }
+
+function createRadar(canvasId, scores, color='#E57200') {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const cats = ['Offense','Defense','Possession','Efficiency','Discipline'];
+  const keys = ['offensive','defensive','possession','efficiency','discipline'];
+  const vals = keys.map(k => Math.max(0, Math.min(scores[k]||0, 100)));
+  const rgb = hexToRgb(color);
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: cats,
+      datasets: [{ data: vals, backgroundColor: `rgba(${rgb},0.15)`, borderColor: color, borderWidth: 2.5, pointBackgroundColor: color, pointRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: '#DADADA' }, pointLabels: { font: { size: 10, family: 'DM Sans' }, color: '#666666' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function createBar(canvasId, labels, datasets, opts={}) {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { grid: { display: false } }, y: { grid: { color: '#DADADA' }, beginAtZero: true, ...opts.yAxis } },
+      plugins: { legend: { display: datasets.length > 1, position: 'top', labels: { font: { size: 10, family: 'DM Sans' } } } },
+      ...opts.extra
+    }
+  });
+}
+
+function createLine(canvasId, labels, datasets, opts={}) {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { grid: { display: false } }, y: { grid: { color: '#DADADA' }, beginAtZero: true } },
+      plugins: { legend: { display: datasets.length > 1, position: 'top', labels: { font: { size: 10, family: 'DM Sans' } } } },
+      ...opts
+    }
+  });
+}
+
+function createScatter(canvasId, data, opts={}) {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: data },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: opts.xLabel||'', font: { family: 'DM Sans' } }, grid: { color: '#DADADA' } },
+        y: { title: { display: true, text: opts.yLabel||'', font: { family: 'DM Sans' } }, grid: { color: '#DADADA' }, beginAtZero: true }
+      },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { font: { size: 10 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.raw.name}: ${ctx.parsed.x.toFixed(1)} / ${ctx.parsed.y.toFixed(1)}%` } }
+      }
+    }
+  });
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+// ═══════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════
+function render() {
+  if (currentView === 'cards') renderCards();
+  else if (currentView === 'overview') renderOverview();
+  else if (currentView === 'comparison') renderComparison();
+  else if (currentView === 'recommendations') renderRecs();
+  else if (currentView === 'drawcenter') renderDrawCenter();
+}
+
+function renderCards() {
+  const container = document.getElementById('view-cards');
+  const filtered = getFiltered();
+  let html = '';
+  filtered.forEach(([name, d], idx) => {
+    const p = d.player, s = d.scores, m = d.metrics;
+    const imgHtml = p.img ? `<img class="headshot" src="${p.img}" onerror="this.outerHTML='<div class=headshot-placeholder>${p.num}</div>'">` : `<div class="headshot-placeholder">${p.num}</div>`;
+
+    html += `<div class="player-card" style="animation-delay:${idx*0.06}s">
+      <div class="card-top">
+        ${imgHtml}
+        <div class="card-top-info">
+          <div class="player-name">#${p.num} ${name}</div>
+          <div class="player-meta">${p.pos} · ${p.yr} · ${p.gp} GP / ${p.gs} GS <span class="tier-badge tier-${d.tier}">TIER ${d.tier} · ${d.tierLabel.toUpperCase()}</span></div>
+        </div>
+        <div class="impact-box"><div class="impact-num">${s.overall.toFixed(0)}</div><div class="impact-label">Impact Score</div></div>
+      </div>
+      <div class="score-bars">
+        ${['OFFENSE','DEFENSE','POSSESSION','EFFICIENCY','DISCIPLINE'].map((l,i) => {
+          const k = ['offensive','defensive','possession','efficiency','discipline'][i];
+          return `<div class="score-bar-item"><div class="score-bar-val" style="color:${scoreColor(s[k])}">${s[k].toFixed(0)}</div><div class="score-bar-label">${l}</div></div>`;
+        }).join('')}
+      </div>
+      <hr class="section-divider">
+      <div class="card-mid">
+        <div class="card-mid-section"><h4>Radar Profile</h4><div class="chart-container"><canvas id="radar-${idx}" width="260" height="260"></canvas></div></div>
+        <div class="card-mid-section"><h4>Core Stats</h4>
+          ${p.pos !== 'GK' ? `
+          <div class="stat-grid">
+            <div class="stat-item"><div class="val">${p.g}</div><div class="lbl">G</div></div>
+            <div class="stat-item"><div class="val">${p.a}</div><div class="lbl">A</div></div>
+            <div class="stat-item"><div class="val">${p.pts}</div><div class="lbl">PTS</div></div>
+            <div class="stat-item"><div class="val">${p.sh>0?p.sh_pct.toFixed(0)+'%':'—'}</div><div class="lbl">SH%</div></div>
+            <div class="stat-item"><div class="val">${p.gb}</div><div class="lbl">GB</div></div>
+            <div class="stat-item"><div class="val">${p.dc}</div><div class="lbl">DC</div></div>
+            <div class="stat-item"><div class="val">${p.to}</div><div class="lbl">TO</div></div>
+            <div class="stat-item"><div class="val">${p.ct}</div><div class="lbl">CT</div></div>
+          </div>
+          <h4 style="margin-top:0.6rem">Advanced</h4>
+          <div class="stat-grid" style="grid-template-columns:1fr 1fr">
+            <div class="stat-item"><div class="val">${m.pts_per_shot.toFixed(2)}</div><div class="lbl">Pts/Shot</div></div>
+            <div class="stat-item"><div class="val">${m.to_rate.toFixed(2)}</div><div class="lbl">TO Rate</div></div>
+            <div class="stat-item"><div class="val">${m.poss_impact>0?'+':''}${m.poss_impact}</div><div class="lbl">Poss Imp</div></div>
+            <div class="stat-item"><div class="val">${m.consistency.toFixed(2)}</div><div class="lbl">Consist</div></div>
+          </div>`
+          : (p.gk_sv_pct!==undefined ? `
+          <div class="stat-grid" style="grid-template-columns:1fr 1fr">
+            <div class="stat-item"><div class="val">${p.gk_sv_pct.toFixed(1)}%</div><div class="lbl">SV%</div></div>
+            <div class="stat-item"><div class="val">${p.gk_gaa.toFixed(2)}</div><div class="lbl">GAA</div></div>
+            <div class="stat-item"><div class="val">${p.gk_sv}</div><div class="lbl">Saves</div></div>
+            <div class="stat-item"><div class="val">${p.gk_ga}</div><div class="lbl">GA</div></div>
+            <div class="stat-item"><div class="val">${p.gk_w}-${p.gk_l}</div><div class="lbl">W-L</div></div>
+            <div class="stat-item"><div class="val">${p.gb}</div><div class="lbl">GB</div></div>
+          </div>` : '')}
+        </div>
+        <div class="card-mid-section"><h4>Game-by-Game Trend</h4><div class="chart-container" style="height:200px"><canvas id="gamelog-${idx}"></canvas></div></div>
+      </div>
+      ${p.sh >= 3 && p.pos !== 'GK' ? `
+      <h4 style="margin-top:0.8rem;font-family:'DM Sans';font-weight:700;font-size:0.82rem;letter-spacing:0">Shot Funnel</h4>
+      <div class="shot-funnel">
+        <div class="shot-funnel-bar" style="width:100%;background:var(--blue-25);color:var(--uva-blue);">Shots: ${p.sh}</div>
+      </div>
+      <div class="shot-funnel">
+        <div class="shot-funnel-bar" style="width:${p.sog/Math.max(p.sh,1)*100}%;background:var(--orange-25);color:var(--uva-blue);">SOG: ${p.sog}</div>
+      </div>
+      <div class="shot-funnel">
+        <div class="shot-funnel-bar" style="width:${p.g/Math.max(p.sh,1)*100}%;background:var(--uva-orange);color:white;">Goals: ${p.g}</div>
+      </div>` : ''}
+      ${d.flags.length ? `<div class="flags" style="margin-top:0.6rem"><strong style="font-size:0.78rem;margin-right:6px;">Flags:</strong>${d.flags.map(f=>`<span class="flag flag-${f.c}">${f.t}</span>`).join('')}</div>` : ''}
+      <div class="coaching-notes">${d.notes}</div>
+      ${d.recs.length ? `<div class="rec-box">${d.recs.slice(0,2).join('<br>')}</div>` : ''}
+    </div>`;
+  });
+  container.innerHTML = html;
+  // Create charts after DOM update
+  requestAnimationFrame(() => {
+    filtered.forEach(([name, d], idx) => {
+      createRadar(`radar-${idx}`, d.scores);
+      const p = d.player, labels = p.game_g.map((_,i)=>`G${i+1}`);
+      createBar(`gamelog-${idx}`, labels, [
+        { label: 'Points', data: p.game_pts, backgroundColor: 'rgba(229,114,0,0.4)', borderColor: '#E57200', borderWidth: 1 },
+        { label: 'Goals', data: p.game_g, type: 'line', borderColor: '#62BB46', borderWidth: 2, pointRadius: 4, fill: false, tension: 0.3 },
+        ...(p.game_to.some(t=>t>0) ? [{ label: 'TO', data: p.game_to, type: 'line', borderColor: '#EF3F6B', borderWidth: 2, borderDash: [5,3], pointRadius: 3, fill: false }] : [])
+      ]);
+    });
+  });
+}
+
+function renderOverview() {
+  const container = document.getElementById('view-overview');
+  const filtered = getFiltered();
+  const tiers = {1:[],2:[],3:[],4:[]};
+  Object.entries(allData).forEach(([n,d]) => tiers[d.tier].push(n));
+
+  let html = `<h2>Team-Wide Impact Overview</h2>
+  <div class="tier-cards">
+    ${[{t:1,l:'Program Drivers',c:'var(--cav-orange)'},{t:2,l:'System Amplifiers',c:'var(--uva-cyan)'},{t:3,l:'Situational Specialists',c:'var(--uva-green)'},{t:4,l:'Developmental',c:'var(--med-gray)'}].map(({t,l,c}) =>
+      `<div class="tier-card" style="border-color:${c}"><div class="num" style="color:${c}">${tiers[t].length}</div><div class="label">${l}</div><div class="names">${tiers[t].slice(0,5).join('<br>')}</div></div>`
+    ).join('')}
+  </div>
+  <div class="overview-grid">
+    <div class="overview-panel"><h3>Usage vs Efficiency</h3><div style="height:350px"><canvas id="scatter-ue"></canvas></div></div>
+    <div class="overview-panel"><h3>Cumulative Scoring</h3><div style="height:350px"><canvas id="cum-pts"></canvas></div></div>
+    <div class="overview-panel full"><h3>Roster Metrics Heatmap</h3><div id="heatmap-container"></div></div>
+  </div>`;
+  container.innerHTML = html;
+
+  // Scatter
+  requestAnimationFrame(() => {
+    const posColors = {A:'#E57200',M:'#232D4B',D:'#62BB46',GK:'#666666'};
+    const byPos = {};
+    filtered.forEach(([n,d]) => {
+      if (d.player.sh < 3) return;
+      const pos = d.player.pos;
+      if (!byPos[pos]) byPos[pos] = [];
+      byPos[pos].push({ x: d.player.sh/d.player.gp, y: d.player.sh_pct, name: n });
+    });
+    createScatter('scatter-ue',
+      Object.entries(byPos).map(([pos, pts]) => ({
+        label: pos, data: pts, backgroundColor: posColors[pos], pointRadius: pts.map(p => Math.max(4, Math.sqrt(allData[p.name].player.pts)*3))
+      })),
+      { xLabel: 'Shots / Game (Usage)', yLabel: 'Shooting % (Efficiency)' }
+    );
+
+    // Cumulative
+    const topScorers = filtered.filter(([,d])=>d.player.pts>=3).slice(0,6);
+    const colors = ['#E57200','#232D4B','#009FDF','#62BB46','#EF3F6B','#FDDA24'];
+    createLine('cum-pts',
+      ['G1','G2','G3','G4','G5'],
+      topScorers.map(([n,d],i) => {
+        const cum = []; let s=0;
+        d.player.game_pts.forEach(v => { s+=v; cum.push(s); });
+        return { label: n, data: cum, borderColor: colors[i], backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 4, tension: 0.3 };
+      })
+    );
+
+    // Heatmap
+    const hm = document.getElementById('heatmap-container');
+    const cols = ['Overall','Offense','Defense','Possession','Efficiency','Discipline'];
+    const keys = ['overall','offensive','defensive','possession','efficiency','discipline'];
+    const rows = filtered.filter(([,d])=>d.player.gp>=2);
+    let hhtml = `<div class="heatmap-grid" style="grid-template-columns:180px repeat(6,1fr)">`;
+    hhtml += `<div class="heatmap-header"></div>${cols.map(c=>`<div class="heatmap-header" style="text-align:center">${c}</div>`).join('')}`;
+    rows.forEach(([n,d]) => {
+      hhtml += `<div class="heatmap-name">#${d.player.num} ${n}</div>`;
+      keys.forEach(k => {
+        const v = d.scores[k];
+        const bg = v>=65?'#E8F5E9':v>=40?'#FFF8E1':'#FCE4EC';
+        const tc = v>=65?'#2E7D32':v>=40?'#E65100':'#C62828';
+        hhtml += `<div class="heatmap-cell" style="background:${bg};color:${tc}">${v.toFixed(0)}</div>`;
+      });
+    });
+    hhtml += '</div>';
+    hm.innerHTML = hhtml;
+  });
+}
+
+function renderComparison() {
+  const container = document.getElementById('view-comparison');
+  const filtered = getFiltered();
+  const options = filtered.map(([n,d]) => `<option value="${n}">#${d.player.num} ${n} (${d.player.pos})</option>`).join('');
+  const p1 = filtered[0]?.[0]||'', p2 = filtered[1]?.[0]||filtered[0]?.[0]||'';
+
+  let html = `<h2>Head-to-Head Comparison</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+    <select id="comp-p1" style="padding:0.6rem;border-radius:8px;border:2px solid var(--uva-orange);font-family:'DM Sans';font-size:0.9rem">${options}</select>
+    <select id="comp-p2" style="padding:0.6rem;border-radius:8px;border:2px solid var(--uva-blue);font-family:'DM Sans';font-size:0.9rem">${options}</select>
+  </div>
+  <div class="comp-header" id="comp-headers"></div>
+  <div class="comp-bars">
+    <div class="comp-chart-panel"><h3>Radar Comparison</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem"><canvas id="comp-radar1" width="240" height="240"></canvas><canvas id="comp-radar2" width="240" height="240"></canvas></div></div>
+    <div class="comp-chart-panel"><h3>Score Comparison</h3><div style="height:280px"><canvas id="comp-bars"></canvas></div></div>
+  </div>
+  <div class="overview-panel"><h3>Raw Stats Comparison</h3><div id="comp-table"></div></div>`;
+  container.innerHTML = html;
+
+  const sel1 = document.getElementById('comp-p1');
+  const sel2 = document.getElementById('comp-p2');
+  if (filtered.length > 1) sel2.selectedIndex = 1;
+
+  function updateComp() {
+    const n1 = sel1.value, n2 = sel2.value;
+    const d1 = allData[n1], d2 = allData[n2];
+    if (!d1||!d2) return;
+
+    document.getElementById('comp-headers').innerHTML = [
+      [n1,d1,'var(--uva-orange)'], [n2,d2,'var(--uva-blue)']
+    ].map(([n,d,c]) => `<div class="comp-player" style="border:2px solid ${c}">
+      <img src="${d.player.img}" style="border:3px solid ${c}" onerror="this.style.display='none'">
+      <h3 style="color:${c}!important">${n}</h3>
+      <div class="meta">#${d.player.num} · ${d.player.pos} · ${d.player.yr} · Impact: ${d.scores.overall.toFixed(0)}</div>
+    </div>`).join('');
+
+    createRadar('comp-radar1', d1.scores, '#E57200');
+    createRadar('comp-radar2', d2.scores, '#232D4B');
+
+    const cats = ['Offense','Defense','Possession','Efficiency','Discipline'];
+    const keys = ['offensive','defensive','possession','efficiency','discipline'];
+    createBar('comp-bars', cats, [
+      { label: n1, data: keys.map(k=>d1.scores[k]), backgroundColor: '#E57200' },
+      { label: n2, data: keys.map(k=>d2.scores[k]), backgroundColor: '#232D4B' }
+    ], { yAxis: { max: 100 } });
+
+    const statKeys = ['gp','g','a','pts','sh','sh_pct','sog_pct','gb','dc','to','ct'];
+    const statLabels = ['GP','Goals','Assists','Points','Shots','SH%','SOG%','GB','DC','TO','CT'];
+    document.getElementById('comp-table').innerHTML = `<table class="data-table">
+      <tr><th>Stat</th><th>${n1}</th><th>${n2}</th></tr>
+      ${statLabels.map((l,i) => {
+        const v1 = d1.player[statKeys[i]], v2 = d2.player[statKeys[i]];
+        return `<tr><td>${l}</td><td>${v1!==undefined?v1:'—'}</td><td>${v2!==undefined?v2:'—'}</td></tr>`;
+      }).join('')}
+    </table>`;
+  }
+
+  sel1.addEventListener('change', updateComp);
+  sel2.addEventListener('change', updateComp);
+  requestAnimationFrame(updateComp);
+}
+
+function renderRecs() {
+  const container = document.getElementById('view-recommendations');
+  const filtered = getFiltered();
+  const tierMap = {1:{l:'🔥 Program Drivers — Maximize Minutes',c:'var(--cav-orange)'},2:{l:'⚡ System Amplifiers — High Usage',c:'var(--uva-cyan)'},3:{l:'🎯 Situational Specialists — Targeted Deployment',c:'var(--uva-green)'},4:{l:'🌱 Developmental — Practice Priority',c:'var(--med-gray)'}};
+
+  let html = `<h2>Coaching Recommendations & Playing Time</h2>`;
+  [1,2,3,4].forEach(t => {
+    const players = filtered.filter(([,d])=>d.tier===t);
+    if (!players.length) return;
+    html += `<div class="rec-tier-section"><h3>${tierMap[t].l}</h3>`;
+    players.forEach(([n,d]) => {
+      html += `<div class="rec-player-card">
+        <img src="${d.player.img}" onerror="this.style.display='none'" style="border:2px solid ${tierMap[t].c}">
+        <div class="rec-player-info">
+          <div class="name">#${d.player.num} ${n} — ${d.player.pos} · ${d.player.yr} · Impact: ${d.scores.overall.toFixed(0)}</div>
+          ${d.recs.map(r=>`<div class="rec-box">${r}</div>`).join('')}
+          ${!d.recs.length ? `<div class="coaching-notes">${d.notes}</div>` : ''}
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  // Team insights
+  const topOff = Object.entries(allData).sort((a,b)=>b[1].scores.offensive-a[1].scores.offensive).slice(0,3);
+  const topDef = Object.entries(allData).sort((a,b)=>b[1].scores.defensive-a[1].scores.defensive).slice(0,3);
+  const highTO = Object.entries(allData).filter(([,d])=>d.player.to>=5).sort((a,b)=>b[1].player.to-a[1].player.to);
+
+  html += `<hr class="section-divider" style="margin:1.5rem 0">
+  <h3>Team-Level Strategic Insights</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div class="coaching-notes"><strong>🏆 Core Offensive Unit:</strong> ${topOff.map(([n])=>n).join(', ')} — combine for ${topOff.reduce((s,[,d])=>s+d.player.pts,0)} points.<br><br><strong>🛡️ Defensive Anchors:</strong> ${topDef.map(([n])=>n).join(', ')} — prioritize their health and minutes.</div>
+    <div class="coaching-notes"><strong>⚠️ Turnover Priority:</strong> ${highTO.slice(0,3).map(([n,d])=>`${n} (${d.player.to} TO)`).join(', ')} — account for ${highTO.slice(0,3).reduce((s,[,d])=>s+d.player.to,0)} of 57 team turnovers.<br><br><strong>🎯 Late-Game Lineup:</strong> Alaimo + Foster + Galica in crunch time for highest clutch production.</div>
+  </div>`;
+  container.innerHTML = html;
+}
+
+function renderDrawCenter() {
+  const container = document.getElementById('view-drawcenter');
+  const totalDC = Object.values(allData).reduce((s,d)=>s+d.player.dc,0);
+  const totalGB = Object.values(allData).reduce((s,d)=>s+d.player.gb,0);
+
+  let html = `<h2>Draw Control Center</h2>
+  <p style="color:var(--text-gray);margin-bottom:1.2rem">Draw controls are the single highest-leverage stat in women's lacrosse. Teams winning 60%+ of draws gain extra possessions per game, dramatically increasing win probability.</p>
+  <div class="dc-metrics">
+    <div class="dc-metric"><div class="val">${totalDC}</div><div class="lbl">Total Draw Controls</div></div>
+    <div class="dc-metric"><div class="val">${(totalDC/5).toFixed(1)}</div><div class="lbl">DC / Game</div></div>
+    <div class="dc-metric"><div class="val">Kate Galica (35)</div><div class="lbl" style="font-size:0.65rem">Primary Specialist</div></div>
+  </div>
+  <div class="overview-grid">
+    <div class="overview-panel"><h3>Draw Control Distribution</h3><div style="height:280px"><canvas id="dc-dist"></canvas></div></div>
+    <div class="overview-panel"><h3>Galica — Rolling Goal Average</h3><div style="height:280px"><canvas id="dc-rolling"></canvas></div></div>
+  </div>
+  <div class="rec-box" style="margin-top:1rem">
+    <strong>🔄 Team Draw-to-Goal Flow:</strong><br>
+    Draw Controls: <strong>${totalDC}</strong> → Ground Balls: <strong>${totalGB}</strong> → Goals: <strong>56</strong><br><br>
+    <strong>Key Insight:</strong> With ${totalDC} draws and 56 goals, the team converts roughly 1 goal per ${(totalDC/56).toFixed(1)} draws. Improving draw-circle ground ball recovery is a high-leverage practice area — every additional clean draw possession is worth ~0.4 expected goals.
+  </div>
+  <div class="coaching-notes" style="margin-top:0.8rem">
+    <strong>Galica Deep Dive:</strong> 35 draws across 5 games = 7.0 DC/game. She accounts for <strong>${(35/Math.max(totalDC,1)*100).toFixed(0)}%</strong> of all team draw controls. Must take every draw in competitive games. Build Dinardo (${allData['Jenna Dinardo']?.player.dc||0} DCs) and Reilly (${allData['Alex Reilly']?.player.dc||0} DCs) as secondary options.
+  </div>`;
+  container.innerHTML = html;
+
+  requestAnimationFrame(() => {
+    const dcPlayers = Object.entries(allData).filter(([,d])=>d.player.dc>=1).sort((a,b)=>b[1].player.dc-a[1].player.dc).slice(0,8);
+    createBar('dc-dist',
+      dcPlayers.map(([n,d])=>`#${d.player.num} ${n.split(' ')[1]}`),
+      [{ data: dcPlayers.map(([,d])=>d.player.dc), backgroundColor: dcPlayers.map(([,d])=>d.player.dc>=5?'#E57200':'#C8CBD2'), borderRadius: 6 }]
+    );
+
+    // Rolling average for Galica
+    const gg = allData['Kate Galica'].player.game_g;
+    const rolling = gg.map((_,i) => {
+      const start = Math.max(0, i-2);
+      const slice = gg.slice(start, i+1);
+      return slice.reduce((a,b)=>a+b,0)/slice.length;
+    });
+    createLine('dc-rolling', ['G1','G2','G3','G4','G5'], [
+      { label: 'Actual Goals', data: gg, borderColor: '#E57200', backgroundColor: '#E57200', pointRadius: 6, pointStyle: 'circle', fill: false },
+      { label: '3-Game Avg', data: rolling, borderColor: '#232D4B', borderWidth: 3, pointRadius: 0, fill: false, tension: 0.4 }
+    ]);
+  });
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
