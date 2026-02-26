@@ -1,4 +1,7 @@
 streamlit
 pandas
 numpy
+matplotlib
+seaborn
+scikit-learn
 # add anything else you import in the app (e.g. matplotlib, scikit-learn, etc.)
